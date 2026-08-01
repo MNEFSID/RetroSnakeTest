@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Retro Snake.io</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%;
+    background:#000;
+    overflow:hidden;
+    font-family: 'Silkscreen', 'Courier New', monospace;
+    touch-action:none;
+    -webkit-font-smoothing:none;
+    font-smooth:never;
+  }
+  #game { display:block; background:#000; cursor:none; touch-action:none; }
+
+  #hud {
+    position:fixed; top:14px; left:14px;
+    color:#3CFFA0;
+    font-size:20px;
+    font-weight:bold;
+    text-shadow: 2px 2px 0 #003318;
+    letter-spacing:1px;
+    z-index:5;
+    line-height:1.6;
+  }
+
+  #leaderboard {
+    position:fixed; top:14px; right:14px;
+    border:2px solid #fff;
+    background:rgba(0,0,0,0.55);
+    color:#fff;
+    padding:6px 10px;
+    font-size:11px;
+    min-width:130px;
+    z-index:5;
+    line-height:1.6;
+  }
+  #leaderboard .title {
+    text-align:center;
+    font-size:12px;
+    font-weight:bold;
+    border-bottom:2px solid #fff;
+    padding-bottom:4px;
+    margin-bottom:4px;
+    letter-spacing:1px;
+  }
+  #leaderboard .row {
+    display:flex;
+    justify-content:space-between;
+    padding:2px 0;
+    white-space:nowrap;
+  }
+  #leaderboard .row.me { color:#3CFFA0; }
+  #leaderboard .row.hunter { color:#FF5C7A; }
+  #leaderboard .row.bot { color:#fff; }
+
+  #overlay {
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.85);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    z-index:20;
+    color:#3CFFA0;
+    text-align:center;
+    padding:20px;
+    overflow-y:auto;
+  }
+  #overlay h1 {
+    font-size:38px;
+    letter-spacing:3px;
+    text-shadow: 3px 3px 0 #003318;
+    margin-bottom:16px;
+    line-height:1.6;
+  }
+  #overlay p { color:#aaa; margin:6px 0; font-size:16px; max-width:420px; line-height:1.9; }
+  #overlay .score { color:#FF5C7A; font-size:19px; margin:16px 0; }
+
+  #setupBox { display:flex; flex-direction:column; align-items:center; gap:12px; margin-top:14px; }
+  #usernameInput {
+    font-family:inherit; font-size:16px; padding:12px 14px;
+    background:#111; border:2px solid #3CFFA0; color:#3CFFA0;
+    text-align:center; letter-spacing:1px; width:260px; max-width:80vw;
+  }
+  #usernameInput:focus { outline:none; border-color:#fff; }
+  .error-text { color:#FF5C7A; font-size:12px; min-height:14px; letter-spacing:0.5px; }
+
+  #serverButtons { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
+  .serverBtn {
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    background:#0a0a0a; border:2px solid #3CFFA0; color:#3CFFA0;
+    font-family:inherit; padding:16px 20px; width:190px; cursor:pointer;
+    box-shadow:4px 4px 0 #003318;
+  }
+  .serverBtn:active { transform:translate(2px,2px); box-shadow:2px 2px 0 #003318; }
+  .serverBtnTitle { font-weight:bold; font-size:14px; letter-spacing:1px; }
+  .serverBtnDesc { font-size:10px; color:#aaa; letter-spacing:0.5px; }
+  .serverBtnCount { font-size:10px; color:#FFD23C; margin-top:2px; }
+
+  #connectingMsg { color:#3CFFA0; font-size:14px; margin-top:14px; letter-spacing:1px; display:none; }
+
+  #boostHint {
+    position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+    color:#666; font-size:13px; z-index:5; letter-spacing:0.5px;
+    text-align:center;
+    pointer-events:none;
+    line-height:1.8;
+    max-width:90vw;
+  }
+
+  #minimap {
+    position:fixed; top:56px; left:14px;
+    width:100px; height:100px;
+    border:2px solid rgba(255,255,255,0.4);
+    background:rgba(0,0,0,0.5);
+    z-index:5;
+  }
+
+  #joystick {
+    position:fixed; left:30px; bottom:calc(30px + env(safe-area-inset-bottom));
+    width:120px; height:120px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.06);
+    border:3px solid rgba(255,255,255,0.35);
+    z-index:6;
+    touch-action:none;
+  }
+  #joystickKnob {
+    position:absolute; left:50%; top:50%;
+    width:52px; height:52px;
+    margin-left:-26px; margin-top:-26px;
+    border-radius:50%;
+    background:#3CFFA0;
+    box-shadow:0 0 12px rgba(60,255,160,0.7);
+    pointer-events:none;
+  }
+
+  #boostBtn {
+    position:fixed; right:30px; bottom:calc(30px + env(safe-area-inset-bottom));
+    width:88px; height:88px;
+    border-radius:50%;
+    background:rgba(255,92,122,0.18);
+    border:3px solid #FF5C7A;
+    color:#FF5C7A;
+    font-family:inherit;
+    font-weight:bold;
+    font-size:13px;
+    letter-spacing:1px;
+    z-index:6;
+    display:flex; align-items:center; justify-content:center;
+    user-select:none;
+    touch-action:none;
+  }
+  #boostBtn.active {
+    background:rgba(255,92,122,0.5);
+    box-shadow:0 0 16px rgba(255,92,122,0.8);
+  }
+
+  @media (max-width:640px){
+    #leaderboard{font-size:9px; min-width:100px; padding:5px 8px;}
+    #leaderboard .title{font-size:10px;}
+    #hud{font-size:15px;}
+    #minimap{width:72px; height:72px; top:46px; left:10px;}
+    #overlay h1{font-size:24px;}
+    #overlay p{font-size:13px;}
+    .serverBtn{width:150px; padding:12px 14px;}
+    #joystick{width:100px; height:100px; left:20px; bottom:calc(20px + env(safe-area-inset-bottom));}
+    #joystickKnob{width:44px; height:44px; margin-left:-22px; margin-top:-22px;}
+    #boostBtn{width:72px; height:72px; right:20px; bottom:calc(20px + env(safe-area-inset-bottom)); font-size:11px;}
+  }
+
+  /* ================= AUTH / LOBBY SCREENS ================= */
+  #decorDots { position:fixed; inset:0; z-index:29; pointer-events:none; }
+  #decorDots span { position:absolute; width:5px; height:5px; opacity:0.9; }
+
+  #authWrap {
+    position:fixed; inset:0; z-index:30;
+    background:#000;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 26px 26px;
+    overflow-y:auto;
+  }
+  .authScreen { min-height:100%; display:flex; flex-direction:column; align-items:center; padding:26px 16px 50px; }
+
+  .authTopBar {
+    width:100%; max-width:1000px;
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:34px;
+  }
+  .brandTag { color:#3CFFA0; font-size:14px; letter-spacing:1px; }
+  .brandTag .verTag { color:#666; font-size:12px; margin-left:6px; }
+  .topBarBtn {
+    display:flex; align-items:center; gap:8px;
+    background:transparent; border:2px solid #FF5C7A; color:#FF5C7A;
+    font-family:inherit; font-size:13px; letter-spacing:1px;
+    padding:10px 16px; cursor:pointer;
+  }
+  .topBarBtn:active { transform:translate(1px,1px); }
+
+  .authTitle { text-align:center; margin-bottom:8px; }
+  .authTitle h1 {
+    font-size:46px; letter-spacing:2px; color:#fff;
+    text-shadow:3px 3px 0 #003318;
+  }
+  .authTitle h1 .accent { color:#3CFFA0; }
+  .snakeDeco { display:flex; align-items:center; justify-content:center; gap:3px; margin:14px 0 30px; }
+  .snakeDeco .seg { width:16px; height:16px; background:#3CFFA0; }
+  .snakeDeco .seg.tailFar { opacity:0.35; }
+  .snakeDeco .head {
+    width:22px; height:22px; background:#3CFFA0;
+    position:relative; margin-left:2px;
+  }
+  .snakeDeco .head::before, .snakeDeco .head::after {
+    content:''; position:absolute; top:6px; width:4px; height:4px; background:#012b18;
+  }
+  .snakeDeco .head::before { left:5px; }
+  .snakeDeco .head::after { right:5px; }
+  .snakeDeco .dot { color:#3CFFA0; font-size:20px; letter-spacing:2px; }
+
+  .pixelPanel {
+    position:relative;
+    background:#0a0a0a;
+    border:2px solid #3CFFA0;
+    clip-path: polygon(
+      0 14px, 14px 14px, 14px 0,
+      calc(100% - 14px) 0, calc(100% - 14px) 14px, 100% 14px,
+      100% calc(100% - 14px), calc(100% - 14px) calc(100% - 14px), calc(100% - 14px) 100%,
+      14px 100%, 14px calc(100% - 14px), 0 calc(100% - 14px)
+    );
+  }
+  .pixelPanel.muted { border-color:#fff; }
+
+  .authForm { width:420px; max-width:92vw; padding:30px 28px; margin-bottom:22px; }
+  .panelHeadRow {
+    display:flex; align-items:center; gap:10px;
+    color:#3CFFA0; font-size:16px; letter-spacing:1px;
+    border-bottom:1px solid #1c8f5a; padding-bottom:14px; margin-bottom:20px;
+  }
+  .fieldLabel { display:block; color:#3CFFA0; font-size:11px; letter-spacing:1px; margin:14px 0 8px; }
+  .fieldWrap {
+    display:flex; align-items:center; gap:10px;
+    border:2px solid #1c8f5a; background:#050505;
+    padding:12px 14px;
+  }
+  .fieldWrap.err { border-color:#FF5C7A; }
+  .fieldWrap input {
+    flex:1; background:transparent; border:none; outline:none;
+    font-family:inherit; color:#eafff2; font-size:14px; letter-spacing:0.5px;
+  }
+  .fieldWrap input::placeholder { color:#4a5a52; }
+  .fieldWrap .icon { color:#3CFFA0; font-size:14px; flex-shrink:0; }
+  .fieldWrap .eyeToggle { cursor:pointer; color:#3CFFA0; user-select:none; }
+
+  .pixelBtn {
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    width:100%; font-family:inherit; cursor:pointer;
+    background:#0a0a0a; border:2px solid #3CFFA0; color:#3CFFA0;
+    font-size:14px; letter-spacing:1px; padding:15px; margin-top:20px;
+    clip-path: polygon(
+      0 10px, 10px 10px, 10px 0,
+      calc(100% - 10px) 0, calc(100% - 10px) 10px, 100% 10px,
+      100% calc(100% - 10px), calc(100% - 10px) calc(100% - 10px), calc(100% - 10px) 100%,
+      10px 100%, 10px calc(100% - 10px), 0 calc(100% - 10px)
+    );
+  }
+  .pixelBtn:active { transform:translate(2px,2px); }
+  .pixelBtn.ghost { border-color:#fff; color:#fff; }
+  .pixelBtn.big { font-size:18px; padding:22px; }
+  .pixelBtn:disabled { opacity:0.5; cursor:default; }
+
+  .orDivider {
+    display:flex; align-items:center; gap:12px;
+    color:#555; font-size:11px; letter-spacing:2px;
+    margin:22px 0 2px;
+  }
+  .orDivider::before, .orDivider::after { content:''; flex:1; height:1px; background:#2a2a2a; }
+
+  .forgotLink {
+    color:#3CFFA0; font-size:12px; letter-spacing:1px; cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+  }
+  .forgotWrap { display:flex; align-items:center; gap:14px; width:420px; max-width:92vw; margin-top:10px; }
+  .forgotWrap::before, .forgotWrap::after { content:''; flex:1; height:1px; background:#222; }
+
+  .formError { color:#FF5C7A; font-size:12px; min-height:14px; letter-spacing:0.5px; margin-top:10px; text-align:center; }
+  .formNote { color:#3CFFA0; font-size:12px; text-align:center; margin-top:10px; letter-spacing:0.5px; }
+
+  /* lobby */
+  .lobbyCard { width:460px; max-width:92vw; padding:26px 30px; margin-bottom:26px; }
+  .lobbyProfileRow { display:flex; align-items:center; gap:18px; padding-bottom:18px; border-bottom:1px solid #1c3a2b; }
+  .pixelAvatar {
+    width:64px; height:64px; background:#3CFFA0; flex-shrink:0;
+    position:relative;
+    clip-path: polygon(0 8px,8px 8px,8px 0,calc(100% - 8px) 0,calc(100% - 8px) 8px,100% 8px,100% calc(100% - 8px),calc(100% - 8px) calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,8px calc(100% - 8px),0 calc(100% - 8px));
+  }
+  .pixelAvatar::before, .pixelAvatar::after { content:''; position:absolute; top:22px; width:8px; height:8px; background:#012b18; }
+  .pixelAvatar::before { left:16px; }
+  .pixelAvatar::after { right:16px; }
+  .lobbyProfileInfo { flex:1; min-width:0; }
+  .lobbyProfileInfo .plabel { color:#3CFFA0; font-size:11px; letter-spacing:1px; }
+  .lobbyProfileInfo .pname { color:#fff; font-size:20px; letter-spacing:1px; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lobbyStatsRow { display:flex; margin-top:18px; }
+  .lobbyStatsRow .statCol { flex:1; }
+  .lobbyStatsRow .statCol.divider { flex:0 0 1px; background:#1c3a2b; margin:0 18px; }
+  .lobbyStatsRow .statLabel { color:#3CFFA0; font-size:11px; letter-spacing:1px; }
+  .lobbyStatsRow .statValue { color:#fff; font-size:26px; margin-top:6px; }
+  .expBar { width:100%; height:10px; background:#1a1a1a; border:1px solid #1c3a2b; margin-top:10px; }
+  .expBar .fill { height:100%; background:#3CFFA0; width:0%; }
+
+  .skinGrid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:18px; }
+  .skinSwatch {
+    aspect-ratio:1; cursor:pointer; position:relative;
+    clip-path: polygon(0 8px,8px 8px,8px 0,calc(100% - 8px) 0,calc(100% - 8px) 8px,100% 8px,100% calc(100% - 8px),calc(100% - 8px) calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,8px calc(100% - 8px),0 calc(100% - 8px));
+    border:2px solid transparent;
+  }
+  .skinSwatch.selected { border-color:#fff; box-shadow:0 0 0 2px #3CFFA0; }
+
+  .footerTag { display:flex; align-items:center; gap:14px; width:460px; max-width:92vw; color:#888; font-size:12px; letter-spacing:1px; margin-top:6px; }
+  .footerTag::before, .footerTag::after { content:''; flex:1; height:1px; background:#222; }
+  .footerTag .crown { font-size:16px; }
+
+  #btnBackToLobby { margin-top:18px; }
+
+  @media (max-width:640px){
+    .authTitle h1 { font-size:30px; }
+    .authForm, .lobbyCard { padding:20px 18px; }
+    .lobbyStatsRow .statValue { font-size:20px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="decorDots"></div>
+
+<div id="authWrap">
+
+  <!-- ===== LOGIN ===== -->
+  <div id="screenLogin" class="authScreen">
+    <div class="authTopBar">
+      <div class="brandTag">RETROSNAKE <span class="verTag">v1.0.0</span></div>
+    </div>
+    <div class="authTitle">
+      <h1>RETRO<span class="accent">SNAKE</span></h1>
+    </div>
+    <div class="snakeDeco">
+      <span class="dot">·</span>
+      <div class="seg tailFar"></div><div class="seg tailFar"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+      <div class="head"></div>
+      <span class="dot">··</span>
+    </div>
+
+    <div class="pixelPanel authForm">
+      <div class="panelHeadRow">🔒 LOGIN KE AKUN</div>
+      <label class="fieldLabel">USERNAME</label>
+      <div class="fieldWrap"><span class="icon">👤</span><input id="loginId" type="text" placeholder="Masukkan username" autocomplete="off"></div>
+      <label class="fieldLabel">PASSWORD</label>
+      <div class="fieldWrap"><span class="icon">🔒</span><input id="loginPassword" type="password" placeholder="Masukkan password" autocomplete="off"><span class="eyeToggle" id="toggleLoginPw">👁</span></div>
+      <div class="formError" id="loginError"></div>
+      <button class="pixelBtn" id="btnLogin">▶ LOGIN</button>
+      <div class="orDivider">ATAU</div>
+      <button class="pixelBtn ghost" id="btnGoRegister">➕ BUAT AKUN BARU</button>
+    </div>
+  </div>
+
+  <!-- ===== REGISTER ===== -->
+  <div id="screenRegister" class="authScreen" style="display:none;">
+    <div class="authTopBar">
+      <div class="brandTag">RETROSNAKE <span class="verTag">v1.0.0</span></div>
+      <button class="topBarBtn" id="btnBackToLoginTop">← KEMBALI</button>
+    </div>
+    <div class="authTitle">
+      <h1>RETRO<span class="accent">SNAKE</span></h1>
+    </div>
+    <div class="snakeDeco">
+      <span class="dot">·</span>
+      <div class="seg tailFar"></div><div class="seg tailFar"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+      <div class="head"></div>
+      <span class="dot">··</span>
+    </div>
+
+    <div class="pixelPanel authForm">
+      <div class="panelHeadRow">➕ BUAT AKUN BARU</div>
+      <label class="fieldLabel">USERNAME</label>
+      <div class="fieldWrap"><span class="icon">👤</span><input id="regUsername" type="text" placeholder="Masukkan username" maxlength="14" autocomplete="off"></div>
+      <label class="fieldLabel">PASSWORD</label>
+      <div class="fieldWrap"><span class="icon">🔒</span><input id="regPassword" type="password" placeholder="Minimal 6 karakter" autocomplete="off"></div>
+      <label class="fieldLabel">KONFIRMASI PASSWORD</label>
+      <div class="fieldWrap"><span class="icon">🔒</span><input id="regPassword2" type="password" placeholder="Ulangi password" autocomplete="off"></div>
+      <div class="formError" id="regError"></div>
+      <button class="pixelBtn" id="btnRegister">➕ BUAT AKUN</button>
+      <div class="orDivider">ATAU</div>
+      <button class="pixelBtn ghost" id="btnGoLogin">▶ SUDAH PUNYA AKUN</button>
+    </div>
+  </div>
+
+  <!-- ===== LOBBY ===== -->
+  <div id="screenLobby" class="authScreen" style="display:none;">
+    <div class="authTopBar">
+      <div class="brandTag">RETROSNAKE <span class="verTag">v1.0.0</span></div>
+      <button class="topBarBtn" id="btnLogout">➜] KELUAR AKUN</button>
+    </div>
+    <div class="authTitle">
+      <h1>RETRO<span class="accent">SNAKE</span></h1>
+    </div>
+    <div class="snakeDeco">
+      <span class="dot">·</span>
+      <div class="seg tailFar"></div><div class="seg tailFar"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+      <div class="head"></div>
+      <span class="dot">··</span>
+    </div>
+
+    <div class="pixelPanel lobbyCard">
+      <div class="lobbyProfileRow">
+        <div class="pixelAvatar" id="lobbyAvatar"></div>
+        <div class="lobbyProfileInfo">
+          <div class="plabel">PLAYER</div>
+          <div class="pname" id="lobbyUsername">-</div>
+        </div>
+      </div>
+      <div class="lobbyStatsRow">
+        <div class="statCol">
+          <div class="statLabel">LEVEL</div>
+          <div class="statValue" id="lobbyLevel">1</div>
+        </div>
+        <div class="statCol divider"></div>
+        <div class="statCol">
+          <div class="statLabel">EXP</div>
+          <div class="statValue" style="font-size:16px;"><span id="lobbyExpCur">0</span> / <span id="lobbyExpMax">100</span></div>
+          <div class="expBar"><div class="fill" id="lobbyExpFill"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="pixelBtn big" id="btnPlayOnline" style="width:460px; max-width:92vw;">▶ PLAY ONLINE</button>
+    <button class="pixelBtn ghost big" id="btnChangeSkin" style="width:460px; max-width:92vw;">👕 CHANGE SKIN</button>
+
+    <div class="footerTag"><span class="crown">👑</span> HAVE FUN &amp; GOOD LUCK! <span class="crown">👑</span></div>
+  </div>
+
+  <!-- ===== SKIN SELECT ===== -->
+  <div id="screenSkins" class="authScreen" style="display:none;">
+    <div class="authTopBar">
+      <div class="brandTag">RETROSNAKE <span class="verTag">v1.0.0</span></div>
+      <button class="topBarBtn" id="btnBackFromSkins">← KEMBALI</button>
+    </div>
+    <div class="authTitle">
+      <h1>PILIH <span class="accent">SKIN</span></h1>
+    </div>
+    <div class="pixelPanel lobbyCard">
+      <div class="panelHeadRow">👕 WARNA ULAR</div>
+      <div class="skinGrid" id="skinGrid"></div>
+    </div>
+    <button class="pixelBtn big" id="btnSaveSkin" style="width:460px; max-width:92vw;">✔ SIMPAN SKIN</button>
+  </div>
+
+</div>
+
+<canvas id="game"></canvas>
+<div id="hud">Length: <span id="lenVal">0</span></div>
+<canvas id="minimap"></canvas>
+<div id="leaderboard">
+  <div class="title">LEADERBOARD</div>
+  <div id="lbRows"></div>
+</div>
+<div id="boostHint">Mouse: gerakkan untuk arah, klik/SPASI boost &nbsp;|&nbsp; HP: pakai joystick &amp; tombol BOOST</div>
+
+<div id="joystick">
+  <div id="joystickKnob"></div>
+</div>
+<div id="boostBtn">BOOST</div>
+
+<div id="overlay" style="display:none;">
+  <h1>RETRO SNAKE.IO</h1>
+  <p>Makan titik warna-warni, hindari tabrakan dengan ular lain, dan jadilah yang terpanjang. Tabrak badan musuh dari samping untuk membuat mereka mati!</p>
+
+  <div class="score" id="finalScore" style="display:none;"></div>
+
+  <div id="setupBox">
+    <div id="serverButtons">
+      <button class="serverBtn" id="btnServerPvp">
+        <span class="serverBtnTitle">SERVER PVP</span>
+        <span class="serverBtnDesc">Hanya vs pemain lain</span>
+        <span class="serverBtnCount" id="countPvp">-- online</span>
+      </button>
+      <button class="serverBtn" id="btnServerBots">
+        <span class="serverBtnTitle">SERVER PVP + BOT</span>
+        <span class="serverBtnDesc">vs pemain &amp; bot AI</span>
+        <span class="serverBtnCount" id="countBots">-- online</span>
+      </button>
+    </div>
+    <button class="pixelBtn ghost" id="btnBackToLobby" style="width:260px;">← KEMBALI KE LOBBY</button>
+  </div>
+
+  <div id="connectingMsg">Menghubungkan ke server...</div>
+</div>
+
+<script type="module">
+  // ---------- Firebase ----------
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import {
+    getDatabase, ref, set, update, remove, onValue, onDisconnect, runTransaction, get
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+  import {
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBDUtL5t1ogmN9nf6pdNuZTom-lpsw1Cns",
+    authDomain: "retrosnake-80a8e.firebaseapp.com",
+    projectId: "retrosnake-80a8e",
+    storageBucket: "retrosnake-80a8e.firebasestorage.app",
+    messagingSenderId: "478147430458",
+    appId: "1:478147430458:web:7acce72b42966540684d03"
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const db = getDatabase(fbApp);
+  const auth = getAuth(fbApp);
+  const myId = 'p_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const miniCanvas = document.getElementById('minimap');
+  const miniCtx = miniCanvas.getContext('2d');
+  let W, H;
+  let miniW = 100, miniH = 100;
+  let DPR = Math.min(window.devicePixelRatio || 1, 3);
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 3);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+
+    const mRect = miniCanvas.getBoundingClientRect();
+    miniW = mRect.width; miniH = mRect.height;
+    miniCanvas.width = Math.round(miniW * DPR);
+    miniCanvas.height = Math.round(miniH * DPR);
+    miniCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    miniCtx.imageSmoothingEnabled = false;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ---------- World settings ----------
+  const WORLD = 4000;
+  const GRID = 40;
+  const FOOD_COUNT = 260;
+  const BOT_COUNT = 7;
+  const HUNTER_CHANCE = 0.35; // fraction of bots styled as "Hunter"
+
+  const COLORS = {
+    player: '#3CFFA0',
+    playerDark: '#1c8f5a',
+    grid: 'rgba(255,255,255,0.05)',
+    boundary: '#552222'
+  };
+  const BOT_PALETTES = [
+    ['#FF5C7A','#8a1f33'], // hunter red/pink (reserved)
+    ['#FFD23C','#8a6c1f'],
+    ['#3C9CFF','#1f4a8a'],
+    ['#C13CFF','#5a1f8a'],
+    ['#FF8A3C','#8a4a1f']
+  ];
+
+  // ---------- Player skins ----------
+  const SKIN_OPTIONS = {
+    green:  ['#3CFFA0','#1c8f5a'],
+    yellow: ['#FFD23C','#8a6c1f'],
+    blue:   ['#3C9CFF','#1f4a8a'],
+    purple: ['#C13CFF','#5a1f8a'],
+    orange: ['#FF8A3C','#8a4a1f'],
+    pink:   ['#FF5C7A','#8a1f33'],
+    white:  ['#EAEAEA','#7a7a7a'],
+    cyan:   ['#3CFFF0','#1c8f8a']
+  };
+
+  let mouse = {x: 0, y: 0};
+  let boosting = false;
+  let running = false;
+  let animId = null;
+
+  function rand(min, max){ return Math.random()*(max-min)+min; }
+  function dist2(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
+  function pickPaletteFor(id){
+    let h = 0;
+    for(let i=0;i<id.length;i++) h = (h*31 + id.charCodeAt(i)) % 1000;
+    const idx = 1 + (h % (BOT_PALETTES.length-1));
+    return BOT_PALETTES[idx];
+  }
+
+  // ---------- Food (local per-client, not synced across players) ----------
+  let foods = [];
+  function spawnFood(x, y){
+    const hue = Math.floor(rand(0,360));
+    foods.push({
+      x: x !== undefined ? x : rand(40, WORLD-40),
+      y: y !== undefined ? y : rand(40, WORLD-40),
+      r: rand(3,5),
+      color: `hsl(${hue},90%,60%)`
+    });
+  }
+  function initFood(){
+    foods = [];
+    for(let i=0;i<FOOD_COUNT;i++) spawnFood();
+  }
+
+  // ---------- Snake class ----------
+  class Snake {
+    constructor(x, y, color, colorDark, name, isPlayer, isHunter){
+      this.isPlayer = !!isPlayer;
+      this.isHunter = !!isHunter;
+      this.name = name;
+      this.color = color;
+      this.colorDark = colorDark;
+      this.angle = rand(0, Math.PI*2);
+      this.targetAngle = this.angle;
+      this.speed = 2.4;
+      this.boostSpeed = 4.4;
+      this.segSpacing = 6;
+      this.alive = true;
+      this.boosting = false;
+
+      const len = isPlayer ? 12 : Math.floor(rand(10, 22));
+      this.pts = [];
+      for(let i=0;i<len;i++){
+        this.pts.push({
+          x: x - Math.cos(this.angle)*i*this.segSpacing,
+          y: y - Math.sin(this.angle)*i*this.segSpacing
+        });
+      }
+      this.aiTimer = 0;
+    }
+    get head(){ return this.pts[0]; }
+    get length(){ return this.pts.length; }
+    get radius(){ return Math.min(28, 6 + this.length*0.18); }
+
+    steerToward(tx, ty){
+      const dx = tx - this.head.x, dy = ty - this.head.y;
+      this.targetAngle = Math.atan2(dy, dx);
+    }
+
+    // Locally-simulated movement (used for: our own player, and bots on the host client)
+    update(dtScale, world){
+      let diff = this.targetAngle - this.angle;
+      while(diff > Math.PI) diff -= Math.PI*2;
+      while(diff < -Math.PI) diff += Math.PI*2;
+      const maxTurn = 0.09 * dtScale;
+      diff = Math.max(-maxTurn, Math.min(maxTurn, diff));
+      this.angle += diff;
+
+      const spd = (this.boosting ? this.boostSpeed : this.speed) * dtScale;
+      const nx = this.head.x + Math.cos(this.angle)*spd;
+      const ny = this.head.y + Math.sin(this.angle)*spd;
+      this.pts.unshift({x:nx, y:ny});
+
+      // boosting costs length: pop the tail AND shrink the desired length,
+      // otherwise the snake just regrows back to size next frame.
+      // Only 50% of dropped segments actually spawn a food box on the ground.
+      if(this.boosting && this.pts.length > 10 && (this._desiredCount == null || this._desiredCount > 10)){
+        if(Math.random() < 0.3){
+          const tail = this.pts[this.pts.length-1];
+          if(Math.random() < 0.5){
+            spawnFood(tail.x, tail.y);
+          }
+          this.pts.pop();
+          this._desiredCount = Math.max(10, (this._desiredCount != null ? this._desiredCount : this.pts.length) - 1);
+        }
+      }
+      const desired = this._desiredCount != null ? this._desiredCount : this.pts.length;
+      while(this.pts.length > desired) this.pts.pop();
+
+      // world boundary: die on contact
+      if(this.head.x <= 0 || this.head.x >= world || this.head.y <= 0 || this.head.y >= world){
+        this.alive = false;
+      }
+    }
+
+    // Interpolated movement for entities synced from Firebase (other players / bots on non-host clients)
+    updateRemote(dtScale){
+      if(this._targetX == null) return;
+      let diff = this.targetAngle - this.angle;
+      while(diff > Math.PI) diff -= Math.PI*2;
+      while(diff < -Math.PI) diff += Math.PI*2;
+      this.angle += diff * Math.min(1, 0.2*dtScale);
+
+      const lerp = Math.min(1, 0.25*dtScale);
+      const nx = this.head.x + (this._targetX - this.head.x)*lerp;
+      const ny = this.head.y + (this._targetY - this.head.y)*lerp;
+      this.pts.unshift({x:nx, y:ny});
+
+      const desired = this._desiredCount != null ? this._desiredCount : this.pts.length;
+      while(this.pts.length > desired) this.pts.pop();
+    }
+
+    grow(n){
+      this._desiredCount = (this._desiredCount || this.pts.length) + n;
+    }
+    initDesired(){
+      this._desiredCount = this.pts.length;
+    }
+  }
+
+  // ---------- Setup ----------
+  let player;
+  let bots = [];
+  const botsById = new Map();
+  const remotePlayers = new Map();
+
+  function makeBotName(hunter){
+    return hunter ? 'Hunter' : 'Bot';
+  }
+
+  function initGame(){
+    initFood();
+    const skinPal = SKIN_OPTIONS[myProfile.skin] || SKIN_OPTIONS.green;
+    player = new Snake(WORLD/2, WORLD/2, skinPal[0], skinPal[1], myUsername, true, false);
+    player.initDesired();
+    bots = [];
+    botsById.clear();
+    remotePlayers.clear();
+  }
+
+  // ---------- Camera ----------
+  let cam = {x:0, y:0, zoom:1};
+
+  function worldToScreen(x,y){
+    return { x: (x - cam.x)*cam.zoom + W/2, y: (y - cam.y)*cam.zoom + H/2 };
+  }
+
+  // ---------- Input ----------
+  canvas.addEventListener('mousemove', (e)=>{
+    mouse.x = e.clientX; mouse.y = e.clientY;
+  });
+  canvas.addEventListener('touchmove', (e)=>{
+    const t = e.touches[0];
+    if(t){ mouse.x = t.clientX; mouse.y = t.clientY; }
+    e.preventDefault();
+  }, {passive:false});
+  canvas.addEventListener('mousedown', ()=> boosting = true);
+  window.addEventListener('mouseup', ()=> boosting = false);
+  window.addEventListener('keydown', (e)=>{ if(e.code === 'Space') boosting = true; });
+  window.addEventListener('keyup', (e)=>{ if(e.code === 'Space') boosting = false; });
+
+  // ---------- Joystick ----------
+  const joystickEl = document.getElementById('joystick');
+  const knobEl = document.getElementById('joystickKnob');
+  let joy = { active:false, dx:0, dy:0, pointerId:null };
+  const JOY_MAX = 42;
+
+  function joyUpdateFromEvent(clientX, clientY){
+    const rect = joystickEl.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    let dx = clientX - cx, dy = clientY - cy;
+    const d = Math.hypot(dx, dy);
+    if(d > JOY_MAX){ dx = dx/d*JOY_MAX; dy = dy/d*JOY_MAX; }
+    joy.dx = dx; joy.dy = dy;
+    knobEl.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+  function joyReset(){
+    joy.active = false; joy.pointerId = null;
+    joy.dx = 0; joy.dy = 0;
+    knobEl.style.transform = 'translate(0px,0px)';
+  }
+  joystickEl.addEventListener('pointerdown', (e)=>{
+    joy.active = true; joy.pointerId = e.pointerId;
+    joyUpdateFromEvent(e.clientX, e.clientY);
+    joystickEl.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  joystickEl.addEventListener('pointermove', (e)=>{
+    if(!joy.active || e.pointerId !== joy.pointerId) return;
+    joyUpdateFromEvent(e.clientX, e.clientY);
+    e.preventDefault();
+  });
+  function joyEnd(e){
+    if(joy.pointerId !== null && e.pointerId !== joy.pointerId) return;
+    joyReset();
+  }
+  joystickEl.addEventListener('pointerup', joyEnd);
+  joystickEl.addEventListener('pointercancel', joyEnd);
+  joystickEl.addEventListener('pointerleave', (e)=>{ if(e.pointerId === joy.pointerId) joyReset(); });
+
+  // ---------- Boost button ----------
+  const boostBtnEl = document.getElementById('boostBtn');
+  function boostOn(e){ boosting = true; boostBtnEl.classList.add('active'); if(e) e.preventDefault(); }
+  function boostOff(e){ boosting = false; boostBtnEl.classList.remove('active'); if(e) e.preventDefault(); }
+  boostBtnEl.addEventListener('pointerdown', boostOn);
+  boostBtnEl.addEventListener('pointerup', boostOff);
+  boostBtnEl.addEventListener('pointercancel', boostOff);
+  boostBtnEl.addEventListener('pointerleave', boostOff);
+
+  // ---------- Collision helpers ----------
+  function segmentHit(snake, x, y, r){
+    for(let i=4; i<snake.pts.length; i+=2){
+      const p = snake.pts[i];
+      const rr = (snake.radius*0.9 + r);
+      if(dist2(x,y,p.x,p.y) < rr*rr) return true;
+    }
+    return false;
+  }
+
+  function eatFoodFor(snake){
+    const hx = snake.head.x, hy = snake.head.y;
+    const R = snake.radius + 6;
+    for(let i=foods.length-1; i>=0; i--){
+      const f = foods[i];
+      if(dist2(hx,hy,f.x,f.y) < R*R){
+        foods.splice(i,1);
+        snake.grow(2);
+        spawnFood();
+      }
+    }
+  }
+
+  function dropCorpse(snake){
+    for(let i=0;i<snake.pts.length;i++){
+      if(Math.random() < 0.4){
+        spawnFood(snake.pts[i].x, snake.pts[i].y);
+      }
+    }
+  }
+
+  // ---------- Bot AI (runs only on the host client) ----------
+  function updateBotAI(bot, dtScale){
+    bot.aiTimer -= dtScale;
+    if(bot.aiTimer <= 0){
+      bot.aiTimer = 20 + Math.random()*20;
+      let best = null, bestD = Infinity;
+      for(const f of foods){
+        const d = dist2(bot.head.x, bot.head.y, f.x, f.y);
+        if(d < bestD && d < 260*260){ bestD = d; best = f; }
+      }
+      if(best){
+        bot.steerToward(best.x, best.y);
+      } else {
+        bot.steerToward(bot.head.x + Math.cos(bot.angle+rand(-1,1))*200, bot.head.y + Math.sin(bot.angle+rand(-1,1))*200);
+      }
+      if(bot.isHunter){
+        const d = dist2(bot.head.x, bot.head.y, player.head.x, player.head.y);
+        if(d < 500*500 && player.alive){
+          bot.steerToward(player.head.x, player.head.y);
+          bot.boosting = Math.random() < 0.4;
+        } else {
+          bot.boosting = false;
+        }
+      }
+    }
+    const margin = 150;
+    if(bot.head.x < margin || bot.head.x > WORLD-margin || bot.head.y < margin || bot.head.y > WORLD-margin){
+      bot.steerToward(WORLD/2, WORLD/2);
+    }
+  }
+
+  function respawnBot(bot){
+    const hunter = Math.random() < HUNTER_CHANCE;
+    const pal = hunter ? BOT_PALETTES[0] : BOT_PALETTES[1 + Math.floor(Math.random()*(BOT_PALETTES.length-1))];
+    bot.color = pal[0]; bot.colorDark = pal[1];
+    bot.isHunter = hunter;
+    bot.name = makeBotName(hunter);
+    const bx = rand(200, WORLD-200), by = rand(200, WORLD-200);
+    bot.pts = [];
+    bot.angle = rand(0,Math.PI*2);
+    bot.targetAngle = bot.angle;
+    const len = Math.floor(rand(10,22));
+    for(let i=0;i<len;i++){
+      bot.pts.push({x: bx - Math.cos(bot.angle)*i*bot.segSpacing, y: by - Math.sin(bot.angle)*i*bot.segSpacing});
+    }
+    bot._desiredCount = bot.pts.length;
+    bot.alive = true;
+    bot.boosting = false;
+  }
+
+  function claimBotKill(bot){
+    if(bot.alive === false) return;
+    dropCorpse(bot);
+    player.grow(Math.floor(bot.length*0.4));
+    bot.alive = false;
+    if(currentServerId === 'pvp_bots' && bot._dbId){
+      runTransaction(ref(db, `servers/pvp_bots/bots/${bot._dbId}/alive`), current => current === false ? undefined : false);
+    }
+    if(isHost){
+      respawnBot(bot);
+    }
+  }
+
+  // ---------- Multiplayer state ----------
+  let currentServerId = null;
+  let myUsername = 'Player';
+  let myPlayerRef = null;
+  let sendStateInterval = null;
+  let botSendInterval = null;
+  let isHost = false;
+  let hostRef = null;
+  let hostHeartbeatInterval = null;
+
+  function sendMyState(){
+    if(!myPlayerRef || !player || !player.alive) return;
+    update(myPlayerRef, {
+      x: player.head.x, y: player.head.y, angle: player.angle,
+      length: player.length, boosting: !!player.boosting, name: myUsername
+    });
+  }
+
+  function sendBotsState(){
+    if(!isHost) return;
+    for(const b of bots){
+      set(ref(db, `servers/pvp_bots/bots/${b._dbId}`), {
+        x: b.head.x, y: b.head.y, angle: b.angle, length: b.length,
+        boosting: !!b.boosting, alive: b.alive !== false,
+        color: b.color, colorDark: b.colorDark, isHunter: !!b.isHunter, name: b.name
+      });
+    }
+  }
+
+  function handleRemotePlayersUpdate(val){
+    const data = val || {};
+    const seen = new Set();
+    for(const [id, d] of Object.entries(data)){
+      if(id === myId || !d) continue;
+      seen.add(id);
+      let rp = remotePlayers.get(id);
+      if(!rp){
+        const pal = pickPaletteFor(id);
+        rp = new Snake(d.x, d.y, pal[0], pal[1], d.name || 'Player', false, false);
+        rp._dbId = id;
+        remotePlayers.set(id, rp);
+      }
+      rp.name = d.name || rp.name;
+      rp.targetAngle = d.angle;
+      rp._targetX = d.x; rp._targetY = d.y;
+      rp._desiredCount = Math.max(4, d.length || rp.pts.length);
+      rp.boosting = !!d.boosting;
+    }
+    for(const id of Array.from(remotePlayers.keys())){
+      if(!seen.has(id)) remotePlayers.delete(id);
+    }
+  }
+
+  function handleRemoteBotsUpdate(val){
+    const data = val || {};
+    for(const [id, d] of Object.entries(data)){
+      if(!d) continue;
+      if(isHost){
+        // host: notice if someone else claimed a kill we haven't processed yet
+        const localBot = botsById.get(id);
+        if(localBot && localBot.alive !== false && d.alive === false){
+          dropCorpse(localBot);
+          localBot.alive = false;
+          respawnBot(localBot);
+        }
+        continue;
+      }
+      let b = botsById.get(id);
+      if(!b){
+        b = new Snake(d.x, d.y, d.color, d.colorDark, d.name || 'Bot', false, !!d.isHunter);
+        b._dbId = id;
+        botsById.set(id, b);
+        bots.push(b);
+      }
+      b.name = d.name || b.name;
+      b.isHunter = !!d.isHunter;
+      b.color = d.color || b.color; b.colorDark = d.colorDark || b.colorDark;
+      b.targetAngle = d.angle;
+      b._targetX = d.x; b._targetY = d.y;
+      b._desiredCount = Math.max(4, d.length || b.pts.length);
+      b.boosting = !!d.boosting;
+      b.alive = d.alive !== false;
+    }
+  }
+
+  function spawnLocalBots(){
+    bots = [];
+    botsById.clear();
+    for(let i=0;i<BOT_COUNT;i++){
+      const hunter = Math.random() < HUNTER_CHANCE;
+      const pal = hunter ? BOT_PALETTES[0] : BOT_PALETTES[1 + Math.floor(Math.random()*(BOT_PALETTES.length-1))];
+      const bx = rand(200, WORLD-200), by = rand(200, WORLD-200);
+      const s = new Snake(bx, by, pal[0], pal[1], makeBotName(hunter), false, hunter);
+      s.initDesired();
+      s._dbId = 'bot_' + i;
+      bots.push(s);
+      botsById.set(s._dbId, s);
+    }
+    if(botSendInterval) clearInterval(botSendInterval);
+    botSendInterval = setInterval(sendBotsState, 120);
+  }
+
+  function setupHostElection(){
+    hostRef = ref(db, 'servers/pvp_bots/meta/host');
+    runTransaction(hostRef, current => {
+      const now = Date.now();
+      if(!current || (now - current.ts) > 8000){
+        return { id: myId, ts: now };
+      }
+      return; // abort, someone else is already host
+    }).then(result => {
+      const won = result.committed && result.snapshot.val() && result.snapshot.val().id === myId;
+      if(won){
+        isHost = true;
+        spawnLocalBots();
+        onDisconnect(hostRef).remove();
+        if(hostHeartbeatInterval) clearInterval(hostHeartbeatInterval);
+        hostHeartbeatInterval = setInterval(()=> set(hostRef, {id: myId, ts: Date.now()}), 3000);
+      } else {
+        onValue(hostRef, snap => {
+          if(isHost || currentServerId !== 'pvp_bots') return;
+          const v = snap.val();
+          if(!v || (Date.now() - v.ts) > 8000){
+            setupHostElection();
+          }
+        });
+      }
+    });
+  }
+
+  function releaseHost(){
+    if(hostHeartbeatInterval){ clearInterval(hostHeartbeatInterval); hostHeartbeatInterval = null; }
+    if(botSendInterval){ clearInterval(botSendInterval); botSendInterval = null; }
+    if(isHost && hostRef) remove(hostRef);
+    isHost = false;
+  }
+
+  function cleanupSession(){
+    if(myPlayerRef) remove(myPlayerRef);
+    if(sendStateInterval){ clearInterval(sendStateInterval); sendStateInterval = null; }
+    releaseHost();
+    remotePlayers.clear();
+    bots = [];
+    botsById.clear();
+  }
+
+  async function connectAndStart(serverId){
+    cleanupSession();
+    currentServerId = serverId;
+
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('connectingMsg').style.display = 'none';
+    document.getElementById('finalScore').style.display = 'none';
+
+    initGame();
+    cam.x = player.head.x; cam.y = player.head.y; cam.zoom = 1;
+
+    myPlayerRef = ref(db, `servers/${serverId}/players/${myId}`);
+    set(myPlayerRef, {
+      name: myUsername, x: player.head.x, y: player.head.y,
+      angle: player.angle, length: player.length, boosting: false
+    });
+    onDisconnect(myPlayerRef).remove();
+
+    onValue(ref(db, `servers/${serverId}/players`), snap => handleRemotePlayersUpdate(snap.val()));
+
+    if(serverId === 'pvp_bots'){
+      onValue(ref(db, 'servers/pvp_bots/bots'), snap => handleRemoteBotsUpdate(snap.val()));
+      setupHostElection();
+    }
+
+    sendStateInterval = setInterval(sendMyState, 120);
+
+    running = true;
+    gameOverFlag = false;
+    lastTime = 0;
+    if(animId) cancelAnimationFrame(animId);
+    animId = requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('beforeunload', ()=>{
+    if(myPlayerRef) remove(myPlayerRef);
+    if(isHost && hostRef) remove(hostRef);
+  });
+
+  // ---------- Game over ----------
+  let gameOverFlag = false;
+  async function endGame(){
+    running = false;
+    gameOverFlag = true;
+    if(myPlayerRef) remove(myPlayerRef);
+    if(sendStateInterval){ clearInterval(sendStateInterval); sendStateInterval = null; }
+    releaseHost();
+
+    // award EXP based on final length, then handle level-ups
+    const gained = player.length * 3;
+    let newExp = myProfile.exp + gained;
+    let newLevel = myProfile.level;
+    while(newExp >= expNeeded(newLevel)){
+      newExp -= expNeeded(newLevel);
+      newLevel += 1;
+    }
+    await saveProfile({ exp: newExp, level: newLevel });
+    refreshLobbyUI();
+
+    document.getElementById('finalScore').style.display = 'block';
+    document.getElementById('finalScore').textContent = 'Panjang akhir: ' + player.length + '  (+' + gained + ' EXP)';
+    document.getElementById('setupBox').style.display = 'flex';
+    document.getElementById('overlay').style.display = 'flex';
+  }
+
+  // ---------- Main loop ----------
+  let lastTime = 0;
+  function loop(ts){
+    if(!running) return;
+    const dt = lastTime ? (ts - lastTime) : 16;
+    lastTime = ts;
+    const dtScale = Math.min(2.2, dt/16.67);
+
+    // player steering
+    if(player.alive){
+      if(joy.active && (Math.abs(joy.dx) > 4 || Math.abs(joy.dy) > 4)){
+        player.targetAngle = Math.atan2(joy.dy, joy.dx);
+      } else {
+        const worldMouseX = cam.x + (mouse.x - W/2)/cam.zoom;
+        const worldMouseY = cam.y + (mouse.y - H/2)/cam.zoom;
+        player.steerToward(worldMouseX, worldMouseY);
+      }
+      player.boosting = boosting && player.length > 12;
+      player.update(dtScale, WORLD);
+
+      if(!player.alive){
+        dropCorpse(player);
+        endGame();
+      } else {
+        eatFoodFor(player);
+
+        let hit = false;
+        for(const bot of bots){
+          if(bot.alive === false) continue;
+          if(segmentHit(bot, player.head.x, player.head.y, player.radius)){ hit = true; break; }
+        }
+        if(!hit){
+          for(const rp of remotePlayers.values()){
+            if(segmentHit(rp, player.head.x, player.head.y, player.radius)){ hit = true; break; }
+          }
+        }
+        if(hit){
+          dropCorpse(player);
+          player.alive = false;
+          endGame();
+        }
+      }
+    }
+
+    // bots
+    const simulateLocally = currentServerId !== 'pvp_bots' || isHost;
+    for(const bot of bots){
+      if(simulateLocally){
+        if(bot.alive === false) continue;
+        updateBotAI(bot, dtScale);
+        bot.update(dtScale, WORLD);
+        if(!bot.alive){ dropCorpse(bot); respawnBot(bot); continue; }
+        eatFoodFor(bot);
+      } else {
+        bot.updateRemote(dtScale);
+        if(bot.alive === false) continue;
+      }
+
+      if(player.alive && segmentHit(player, bot.head.x, bot.head.y, bot.radius)){
+        claimBotKill(bot);
+      }
+
+      if(simulateLocally){
+        for(const other of bots){
+          if(other === bot || !other.alive) continue;
+          if(segmentHit(other, bot.head.x, bot.head.y, bot.radius)){
+            dropCorpse(bot);
+            bot.alive = false;
+            respawnBot(bot);
+            break;
+          }
+        }
+      }
+    }
+
+    // remote human players: just interpolate their position, they own their own death
+    for(const rp of remotePlayers.values()){
+      rp.updateRemote(dtScale);
+    }
+
+    // camera follow player
+    if(player.alive){
+      cam.x += (player.head.x - cam.x)*0.12;
+      cam.y += (player.head.y - cam.y)*0.12;
+      const targetZoom = Math.max(0.55, 1 - (player.length-12)*0.0035);
+      cam.zoom += (targetZoom - cam.zoom)*0.05;
+    }
+
+    render();
+    renderMinimap();
+    updateHUD();
+
+    animId = requestAnimationFrame(loop);
+  }
+
+  // ---------- Minimap ----------
+  function renderMinimap(){
+    const mw = miniW, mh = miniH;
+    miniCtx.clearRect(0,0,mw,mh);
+    miniCtx.fillStyle = 'rgba(255,255,255,0.04)';
+    miniCtx.fillRect(0,0,mw,mh);
+
+    const scale = mw / WORLD;
+
+    const viewW = (W/cam.zoom) * scale;
+    const viewH = (H/cam.zoom) * scale;
+    const vx = cam.x*scale - viewW/2;
+    const vy = cam.y*scale - viewH/2;
+    miniCtx.strokeStyle = 'rgba(255,255,255,0.5)';
+    miniCtx.lineWidth = 1;
+    miniCtx.strokeRect(vx, vy, viewW, viewH);
+
+    for(const bot of bots){
+      if(bot.alive === false) continue;
+      miniCtx.fillStyle = bot.isHunter ? '#FF5C7A' : 'rgba(255,255,255,0.55)';
+      const bx = bot.head.x*scale, by = bot.head.y*scale;
+      miniCtx.fillRect(bx-1.5, by-1.5, 3, 3);
+    }
+
+    for(const rp of remotePlayers.values()){
+      miniCtx.fillStyle = rp.color;
+      const bx = rp.head.x*scale, by = rp.head.y*scale;
+      miniCtx.fillRect(bx-1.5, by-1.5, 3, 3);
+    }
+
+    if(player.alive){
+      const px = player.head.x*scale, py = player.head.y*scale;
+      miniCtx.fillStyle = '#3CFFA0';
+      miniCtx.fillRect(px-2.5, py-2.5, 5, 5);
+    }
+  }
+
+  // ---------- Render ----------
+  function render(){
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+
+    ctx.strokeStyle = COLORS.grid;
+    ctx.lineWidth = 1;
+    const startX = Math.floor((cam.x - W/2/cam.zoom)/GRID)*GRID;
+    const startY = Math.floor((cam.y - H/2/cam.zoom)/GRID)*GRID;
+    const endX = cam.x + W/2/cam.zoom;
+    const endY = cam.y + H/2/cam.zoom;
+    for(let gx=startX; gx<endX; gx+=GRID){
+      const p1 = worldToScreen(gx, cam.y - H/cam.zoom);
+      const p2 = worldToScreen(gx, cam.y + H/cam.zoom);
+      ctx.beginPath(); ctx.moveTo(p1.x,0); ctx.lineTo(p2.x,H); ctx.stroke();
+    }
+    for(let gy=startY; gy<endY; gy+=GRID){
+      const p1 = worldToScreen(cam.x - W/cam.zoom, gy);
+      const p2 = worldToScreen(cam.x + W/cam.zoom, gy);
+      ctx.beginPath(); ctx.moveTo(0,p1.y); ctx.lineTo(W,p2.y); ctx.stroke();
+    }
+
+    ctx.strokeStyle = COLORS.boundary;
+    ctx.lineWidth = 6;
+    const b1 = worldToScreen(0,0), b2 = worldToScreen(WORLD,WORLD);
+    ctx.strokeRect(b1.x, b1.y, b2.x-b1.x, b2.y-b1.y);
+
+    for(const f of foods){
+      const s = worldToScreen(f.x, f.y);
+      if(s.x < -20 || s.x > W+20 || s.y < -20 || s.y > H+20) continue;
+      ctx.fillStyle = f.color;
+      const r = f.r*cam.zoom;
+      ctx.fillRect(s.x-r, s.y-r, r*2, r*2);
+    }
+
+    for(const bot of bots){ if(bot.alive !== false) drawSnake(bot); }
+    for(const rp of remotePlayers.values()) drawSnake(rp);
+    if(player.alive) drawSnake(player);
+  }
+
+  function drawSnake(snake){
+    const r = snake.radius*cam.zoom;
+    for(let i=snake.pts.length-1; i>=0; i--){
+      const p = snake.pts[i];
+      const s = worldToScreen(p.x, p.y);
+      if(s.x < -30 || s.x > W+30 || s.y < -30 || s.y > H+30) continue;
+      ctx.fillStyle = (i % 6 < 3) ? snake.color : snake.colorDark;
+      const size = r*2*0.9;
+      ctx.fillRect(s.x-size/2, s.y-size/2, size, size);
+    }
+    const head = worldToScreen(snake.head.x, snake.head.y);
+    const ex1 = head.x + Math.cos(snake.angle+0.5)*r*0.5;
+    const ey1 = head.y + Math.sin(snake.angle+0.5)*r*0.5;
+    const ex2 = head.x + Math.cos(snake.angle-0.5)*r*0.5;
+    const ey2 = head.y + Math.sin(snake.angle-0.5)*r*0.5;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(ex1-2, ey1-2, 4,4);
+    ctx.fillRect(ex2-2, ey2-2, 4,4);
+
+    if(!snake.isPlayer){
+      ctx.fillStyle = snake.isHunter ? '#FF5C7A' : '#ddd';
+      ctx.font = "13px 'Silkscreen', Courier New";
+      ctx.textAlign = 'center';
+      ctx.fillText(snake.name, head.x, head.y - r - 8);
+    }
+  }
+
+  // ---------- HUD & Leaderboard ----------
+  function updateHUD(){
+    document.getElementById('lenVal').textContent = player.length;
+
+    const all = [
+      {name: myUsername, len: player.length, cls:'me', alive: player.alive},
+      ...bots.filter(b=>b.alive!==false).map(b=>({name:b.name, len:b.length, cls: b.isHunter?'hunter':'bot', alive:true})),
+      ...Array.from(remotePlayers.values()).map(rp=>({name:rp.name, len:rp.length, cls:'bot', alive:true}))
+    ].filter(e=>e.alive).sort((a,b)=>b.len-a.len).slice(0,5);
+
+    const rowsEl = document.getElementById('lbRows');
+    rowsEl.innerHTML = all.map((e,i)=>`<div class="row ${e.cls}">${i+1}. ${e.name}<span>&nbsp;${e.len}</span></div>`).join('');
+  }
+
+  // ---------- Decorative dots on auth screens ----------
+  (function spawnDecorDots(){
+    const colors = ['#3CFFA0','#FF5C7A','#FFD23C','#3C9CFF','#C13CFF','#fff'];
+    const wrap = document.getElementById('decorDots');
+    for(let i=0;i<26;i++){
+      const d = document.createElement('span');
+      d.style.left = Math.random()*98 + 'vw';
+      d.style.top = Math.random()*98 + 'vh';
+      d.style.background = colors[Math.floor(Math.random()*colors.length)];
+      wrap.appendChild(d);
+    }
+  })();
+
+  // ---------- Screen switching ----------
+  function showAuthScreen(id){
+    document.getElementById('authWrap').style.display = 'block';
+    document.getElementById('decorDots').style.display = 'block';
+    ['screenLogin','screenRegister','screenLobby','screenSkins'].forEach(s=>{
+      document.getElementById(s).style.display = (s === id) ? 'flex' : 'none';
+    });
+  }
+  function hideAuthScreens(){
+    document.getElementById('authWrap').style.display = 'none';
+    document.getElementById('decorDots').style.display = 'none';
+  }
+  function clearAuthErrors(){
+    document.getElementById('loginError').textContent = '';
+    document.getElementById('regError').textContent = '';
+  }
+
+  // ---------- Profile (level/exp/skin) ----------
+  let myProfile = { username:'Player', level:1, exp:0, skin:'green' };
+  let myUid = null;
+
+  function expNeeded(level){ return level * 100; }
+
+  function refreshLobbyUI(){
+    document.getElementById('lobbyUsername').textContent = myProfile.username;
+    document.getElementById('lobbyLevel').textContent = myProfile.level;
+    const need = expNeeded(myProfile.level);
+    document.getElementById('lobbyExpCur').textContent = myProfile.exp;
+    document.getElementById('lobbyExpMax').textContent = need;
+    document.getElementById('lobbyExpFill').style.width = Math.min(100, (myProfile.exp/need)*100) + '%';
+    const avatarColor = (SKIN_OPTIONS[myProfile.skin] || SKIN_OPTIONS.green)[0];
+    document.getElementById('lobbyAvatar').style.background = avatarColor;
+  }
+
+  function goToLobby(){
+    myUsername = myProfile.username;
+    refreshLobbyUI();
+    showAuthScreen('screenLobby');
+  }
+
+  async function loadOrCreateProfile(user){
+    myUid = user.uid;
+    const snap = await get(ref(db, `users/${myUid}`));
+    if(snap.exists()){
+      const d = snap.val();
+      myProfile = {
+        username: d.username || 'Player',
+        level: d.level || 1,
+        exp: d.exp || 0,
+        skin: d.skin || 'green'
+      };
+    } else {
+      myProfile = { username: (user.email||'Player').split('@')[0], level:1, exp:0, skin:'green' };
+      await set(ref(db, `users/${myUid}`), myProfile);
+    }
+    goToLobby();
+  }
+
+  async function saveProfile(fields){
+    Object.assign(myProfile, fields);
+    if(myUid) await update(ref(db, `users/${myUid}`), fields);
+  }
+
+  onAuthStateChanged(auth, user => {
+    if(user){
+      loadOrCreateProfile(user);
+    } else {
+      myUid = null;
+      clearAuthErrors();
+      showAuthScreen('screenLogin');
+    }
+  });
+
+  // ---------- Login (username + password only, no real email needed) ----------
+  // Firebase Auth requires an email under the hood, so we derive a stable
+  // internal one from the username. The user never sees or types it.
+  function usernameToEmail(username){
+    const clean = username.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '');
+    return (clean || 'player') + '@retrosnake.local';
+  }
+
+  document.getElementById('btnLogin').addEventListener('click', async ()=>{
+    const idValue = document.getElementById('loginId').value.trim();
+    const pw = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    errEl.style.color = '#FF5C7A';
+    errEl.textContent = '';
+    if(!idValue || !pw){
+      errEl.textContent = 'Isi username dan password.';
+      return;
+    }
+    try{
+      await signInWithEmailAndPassword(auth, usernameToEmail(idValue), pw);
+    } catch(e){
+      console.error('Login error:', e);
+      if(e.code === 'auth/operation-not-allowed'){
+        errEl.textContent = 'Login Email/Password belum diaktifkan di Firebase Console (Authentication > Sign-in method).';
+      } else if(e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential'){
+        errEl.textContent = 'Username atau password salah.';
+      } else {
+        errEl.textContent = 'Login gagal (' + (e.code || e.message || 'unknown') + ')';
+      }
+    }
+  });
+
+  document.getElementById('toggleLoginPw').addEventListener('click', ()=>{
+    const inp = document.getElementById('loginPassword');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  });
+
+  document.getElementById('btnGoRegister').addEventListener('click', ()=>{ clearAuthErrors(); showAuthScreen('screenRegister'); });
+  document.getElementById('btnGoLogin').addEventListener('click', ()=>{ clearAuthErrors(); showAuthScreen('screenLogin'); });
+  document.getElementById('btnBackToLoginTop').addEventListener('click', ()=>{ clearAuthErrors(); showAuthScreen('screenLogin'); });
+
+  // ---------- Register ----------
+  document.getElementById('btnRegister').addEventListener('click', async ()=>{
+    const username = document.getElementById('regUsername').value.trim();
+    const pw = document.getElementById('regPassword').value;
+    const pw2 = document.getElementById('regPassword2').value;
+    const errEl = document.getElementById('regError');
+    errEl.style.color = '#FF5C7A';
+    errEl.textContent = '';
+
+    if(!username || !pw || !pw2){
+      errEl.textContent = 'Semua kolom wajib diisi.';
+      return;
+    }
+    if(username.length < 3){
+      errEl.textContent = 'Username minimal 3 karakter.';
+      return;
+    }
+    if(pw.length < 6){
+      errEl.textContent = 'Password minimal 6 karakter.';
+      return;
+    }
+    if(pw !== pw2){
+      errEl.textContent = 'Konfirmasi password tidak cocok.';
+      return;
+    }
+
+    try{
+      const cred = await createUserWithEmailAndPassword(auth, usernameToEmail(username), pw);
+      const uid = cred.user.uid;
+      const profile = { username: username.slice(0,14), level:1, exp:0, skin:'green' };
+      await set(ref(db, `users/${uid}`), profile);
+    } catch(e){
+      console.error('Register error:', e);
+      if(e.code === 'auth/email-already-in-use'){
+        errEl.textContent = 'Username sudah dipakai, pilih yang lain.';
+      } else if(e.code === 'auth/weak-password'){
+        errEl.textContent = 'Password terlalu lemah, pakai minimal 6 karakter.';
+      } else if(e.code === 'auth/operation-not-allowed'){
+        errEl.textContent = 'Login Email/Password belum diaktifkan di Firebase Console (Authentication > Sign-in method).';
+      } else if(e.code === 'auth/invalid-email'){
+        errEl.textContent = 'Username mengandung karakter yang tidak valid, coba huruf/angka saja.';
+      } else if(e.code === 'PERMISSION_DENIED' || (e.message||'').includes('PERMISSION_DENIED')){
+        errEl.textContent = 'Akun terbuat, tapi database menolak simpan profil (cek Realtime Database Rules).';
+      } else {
+        errEl.textContent = 'Registrasi gagal (' + (e.code || e.message || 'unknown') + ')';
+      }
+    }
+  });
+
+  // ---------- Logout ----------
+  document.getElementById('btnLogout').addEventListener('click', ()=>{
+    signOut(auth);
+  });
+
+  // ---------- Skin select ----------
+  const skinGridEl = document.getElementById('skinGrid');
+  let pendingSkin = 'green';
+  Object.keys(SKIN_OPTIONS).forEach(key=>{
+    const sw = document.createElement('div');
+    sw.className = 'skinSwatch';
+    sw.style.background = SKIN_OPTIONS[key][0];
+    sw.dataset.skin = key;
+    sw.addEventListener('click', ()=>{
+      pendingSkin = key;
+      Array.from(skinGridEl.children).forEach(c=>c.classList.remove('selected'));
+      sw.classList.add('selected');
+    });
+    skinGridEl.appendChild(sw);
+  });
+
+  document.getElementById('btnChangeSkin').addEventListener('click', ()=>{
+    pendingSkin = myProfile.skin;
+    Array.from(skinGridEl.children).forEach(c=>{
+      c.classList.toggle('selected', c.dataset.skin === pendingSkin);
+    });
+    showAuthScreen('screenSkins');
+  });
+  document.getElementById('btnBackFromSkins').addEventListener('click', ()=> goToLobby());
+  document.getElementById('btnSaveSkin').addEventListener('click', async ()=>{
+    await saveProfile({ skin: pendingSkin });
+    goToLobby();
+  });
+
+  // ---------- Play online / server select ----------
+  function tryStart(serverId){
+    myUsername = myProfile.username;
+    hideAuthScreens();
+    document.getElementById('overlay').style.display = 'flex';
+    document.getElementById('setupBox').style.display = 'none';
+    document.getElementById('connectingMsg').style.display = 'block';
+    connectAndStart(serverId);
+  }
+  document.getElementById('btnPlayOnline').addEventListener('click', ()=>{
+    hideAuthScreens();
+    document.getElementById('finalScore').style.display = 'none';
+    document.getElementById('setupBox').style.display = 'flex';
+    document.getElementById('connectingMsg').style.display = 'none';
+    document.getElementById('overlay').style.display = 'flex';
+  });
+  document.getElementById('btnServerPvp').addEventListener('click', ()=> tryStart('pvp'));
+  document.getElementById('btnServerBots').addEventListener('click', ()=> tryStart('pvp_bots'));
+  document.getElementById('btnBackToLobby').addEventListener('click', ()=>{
+    document.getElementById('overlay').style.display = 'none';
+    goToLobby();
+  });
+
+  // live online-count preview on the menu
+  onValue(ref(db, 'servers/pvp/players'), snap => {
+    document.getElementById('countPvp').textContent = (snap.size||0) + ' online';
+  });
+  onValue(ref(db, 'servers/pvp_bots/players'), snap => {
+    document.getElementById('countBots').textContent = (snap.size||0) + ' online';
+  });
+
+  // initial mouse center so it doesn't dart on start
+  mouse.x = window.innerWidth/2 + 50;
+  mouse.y = window.innerHeight/2;
+</script>
+</body>
+</html>
